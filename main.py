@@ -3,7 +3,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 import hashlib
-
+import tkinter as tk
+from tkinter import ttk, PhotoImage
+# from PIL import ImageTk, Image
 
 def get_spotify_keys():
     client_id = input("Enter Spotify client ID: ")
@@ -18,6 +20,63 @@ def get_spotify_keys():
     return credentials
 
 
+class Starter(tk.Tk):
+    def __init__(self, title, size):
+        # main setup
+        super().__init__()
+        self.title(title)
+        self.geometry(f'{size[0]}x{size[1]}')
+        self.minsize(size[0], size[1])
+        self.iconbitmap('collection.ico')
+        # widgets
+        self.mainscreen = MainScreen(self)
+        # run
+        self.mainloop()
+
+
+class MainScreen(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.place(x=0, y=0, relwidth=0.3, relheight=1)
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        # create a label and entry for username
+        username = ttk.Label(self, text="Username:")
+        user_entry = ttk.Entry(self)
+        # create a label and entry for password
+        password = ttk.Label(self, text="Password:")
+        pass_entry = ttk.Entry(self, show="*")
+        # create a button to submit the form
+        login_button = ttk.Button(self, text="Login")
+        signup_button = ttk.Button(self, text="Sign Up")
+
+        entry = ttk.Entry(self)
+        # create grid rework
+        self.columnconfigure((0, 1, 2, 3, 4), uniform='a')
+        self.rowconfigure((0, 1, 2, 3, 4), uniform='a')
+        # place widgets
+        username.grid(row=1, column=0, sticky='nswe')
+        user_entry.grid(row=1, column=1, sticky='nswe')
+        password.grid(row=2, column=0, sticky='nswe')
+        pass_entry.grid(row=2, column=1, sticky='nswe')
+        login_button.grid(row=3, column=0, )  # command=check login
+        signup_button.grid(row=3, column=1, )  # command= sign up page
+
+
+# create another frame after login
+# implement spotify stuff here, lookup, selection,recommendation
+# create another frame for signup
+# make sure theres a way to probably fix and not random characters enter into data
+
+# image_path=PhotoImage(file="C:\Files\Background.png")
+# background_label = tk.Label(self, image=image_path)
+# background_label.place(relheight=1,relwidth=1)
+
+
+# start the event loop
+Starter("Music Tinkerers", (600, 600))
 def get_track_ids(username, sp):
     # Get a user's playlists
     playlists = sp.user_playlists(username)
