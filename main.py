@@ -3,8 +3,66 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 import hashlib
+import tkinter as tk
+from tkinter import ttk
+# from PIL import ImageTk, Image
 
+class Starter(tk.Tk):
+    def __init__(self,title,size):
+        super().__init__()
+        #main setup
+        self.title(title)
+        self.geometry(f'{size[0]}x{size[0]}')
+        self.minsize(size[0],size[1])
+        self.iconbitmap('collection.ico')
+        #widgets
+        self.mainscreen=MainScreen(self)
+        #run
+        self.mainloop()
 
+class MainScreen(ttk.Frame):
+    def __init__(self,master):
+        super().__init__(master)
+        self.place(x=0,y=0,relwidth=0.3,relheight=1)
+
+        self.create_widgets()
+    def create_widgets(self):
+        #Create objects
+        username=ttk.Label(self,text="Username:")
+        user_entry=ttk.Entry(self)
+        password=ttk.Label(self,text="Password:")
+        pass_entry=ttk.Entry(self, show="*")
+        login_button=ttk.Button(self,text="Login")
+        signup_button=ttk.Button(self,text="Sign Up")
+        entry = ttk.Entry(self)
+        # create grid reconfigure the grid placements
+        self.columnconfigure((0, 1, 2), uniform='a')
+        self.rowconfigure((0, 1, 2, 3, 4), uniform='a')
+        # place widgets
+        username.grid(row=1, column=0, sticky='nw')
+        user_entry.grid(row=1, column=1, sticky='nw',pady=2)
+        password.grid(row=2, column=0, sticky='nw')
+        pass_entry.grid(row=2, column=1, sticky='nw',pady=2)
+        login_button.grid(row=3, column=0, )  # command=check login
+        signup_button.grid(row=3, column=1, )  # command= sign up page
+#maybe a quit button
+class Logged(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+# create another frame after login but before that occurs need to verify login information
+# implement spotify stuff here, lookup, selection,recommendation design wise how should it appear
+class Signing(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+# create another frame for signup
+# make sure there's a way to probably fix and not random characters enter into data no random entries
+
+# image_path=PhotoImage(file="C:\Files\Background.png") it was a test and it was not ideal GIF, PGM, PPM, and PNG
+# background_label = tk.Label(self, image=image_path)
+# background_label.place(relheight=1,relwidth=1)
+
+# start the event loop
+Starter("Music Tinkerers", (600, 400))
 def get_spotify_keys():
     client_id = input("Enter Spotify client ID: ")
     client_secret = input("Enter Spotify client secret: ")
