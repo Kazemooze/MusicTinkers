@@ -4,8 +4,9 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import json
 import hashlib
 import tkinter as tk
-from tkinter import ttk, PhotoImage
-# from PIL import ImageTk, Image
+from tkinter import *
+from PIL import ImageTk, Image
+
 
 def get_spotify_keys():
     client_id = input("Enter Spotify client ID: ")
@@ -20,49 +21,96 @@ def get_spotify_keys():
     return credentials
 
 
-class Starter(tk.Tk):
-    def __init__(self, title, size):
-        # main setup
-        super().__init__()
-        self.title(title)
-        self.geometry(f'{size[0]}x{size[1]}')
-        self.minsize(size[0], size[1])
-        self.iconbitmap('collection.ico')
-        # widgets
-        self.mainscreen = MainScreen(self)
-        # run
-        self.mainloop()
+class Root:
+    def __init__(self):
+        root = tk.Tk()
+        root.title('MusicTinkers')
+        root.geometry('925x500+300+200')
+        root.configure(bg='white')
+        MainScreen(root)
+        root.mainloop()
 
 
-class MainScreen(ttk.Frame):
+class MainScreen(tk.Frame):
     def __init__(self, master):
         super().__init__(master)
-        self.place(x=0, y=0, relwidth=0.3, relheight=1)
-
+        self.pack(fill=tk.BOTH, expand=True)
+        self.configure(bg='#fff')
+        self.username_entry = None
+        self.password_entry = None
         self.create_widgets()
 
-    def create_widgets(self):
-        # create a label and entry for username
-        username = ttk.Label(self, text="Username:")
-        user_entry = ttk.Entry(self)
-        # create a label and entry for password
-        password = ttk.Label(self, text="Password:")
-        pass_entry = ttk.Entry(self, show="*")
-        # create a button to submit the form
-        login_button = ttk.Button(self, text="Login")
-        signup_button = ttk.Button(self, text="Sign Up")
+    def signup(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        encode = password.encode()
+        hash_pass = hashlib.md5(encode).hexdigest()
 
-        entry = ttk.Entry(self)
-        # create grid rework
-        self.columnconfigure((0, 1, 2, 3, 4), uniform='a')
-        self.rowconfigure((0, 1, 2, 3, 4), uniform='a')
-        # place widgets
-        username.grid(row=1, column=0, sticky='nswe')
-        user_entry.grid(row=1, column=1, sticky='nswe')
-        password.grid(row=2, column=0, sticky='nswe')
-        pass_entry.grid(row=2, column=1, sticky='nswe')
-        login_button.grid(row=3, column=0, )  # command=check login
-        signup_button.grid(row=3, column=1, )  # command= sign up page
+        account_data = {"username": username, "password": hash_pass}
+
+        with open("account_credentials.txt", "a") as f:
+            f.write(json.dumps(account_data) + "\n")
+        f.close()
+        print("Registered Successfully")
+
+    def login(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        auth_pass = hashlib.md5(password.encode()).hexdigest()
+
+        with open("account_credentials.txt", "r") as f:
+            for line in f:
+                try:
+                    account_data = json.loads(line)
+                    stored_user = account_data.get("username", "")
+                    stored_pass = account_data.get("password", "")
+                except json.JSONDecodeError:
+                    print("Error decoding JSON:", repr(line))  # Debug print
+                    continue  # Skip lines with invalid JSON
+
+                if username == stored_user and auth_pass == stored_pass:
+                    print("Logged In")
+                    return
+                else:
+                    print("Login Failed")
+
+    def create_widgets(self):
+        frame = Frame(width=350, height=350, bg="white")
+        frame.place(x=480, y=70)
+
+        img = Image.open('musiclogo.png')
+        img = img.resize((250, 250))
+        img = ImageTk.PhotoImage(img)
+
+        # Create a label to display the image
+        image_label = Label(image=img, bg='white')
+        image_label.image = img  # Keep a reference to avoid garbage collection
+        image_label.place(x=90, y=95)
+
+        heading = Label(frame, text="Sign in", fg='#57a1f8', bg='white', font=('Microsoft YaHei UI Light', 23, 'bold'))
+        heading.place(x=100, y=5)
+
+        self.username_entry = tk.Entry(frame, width=25, fg='black', bg="white", border=0,
+                                       font=('Microsoft YaHei UI Light', 11, 'bold'))
+        self.username_entry.insert(0, 'Username')
+        self.username_entry.place(x=30, y=80)
+
+        Frame(frame, width=295, height=2, bg='black').place(x=25, y=107)
+
+        self.password_entry = tk.Entry(frame, show='*', width=25, fg='black', bg="white", border=0,
+                                       font=('Microsoft YaHei UI Light', 11, 'bold'))
+        self.password_entry.insert(0, 'Password')
+        self.password_entry.place(x=30, y=150)
+
+        Frame(frame, width=295, height=2, bg='black').place(x=25, y=177)
+
+        login_button = tk.Button(frame, text="Login", command=self.login, bg='#57a1f8', fg='white', width='39',
+                                 border=0)
+        login_button.place(x=35, y=204)
+
+        signup_button = tk.Button(frame, text="Signup", command=self.signup, bg='#57a1f8', fg='white', width='39',
+                                  border=0)
+        signup_button.place(x=35, y=240)
 
 
 # create another frame after login
@@ -75,8 +123,6 @@ class MainScreen(ttk.Frame):
 # background_label.place(relheight=1,relwidth=1)
 
 
-# start the event loop
-Starter("Music Tinkerers", (600, 600))
 def get_track_ids(username, sp):
     # Get a user's playlists
     playlists = sp.user_playlists(username)
@@ -111,37 +157,6 @@ def get_track_ids(username, sp):
     return track_ids
 
 
-def signup():
-    username = input("Enter a username: ")
-    password = input("Enter a password: ")
-    encode = password.encode()  # using hashlib python library to encode password
-    hash_pass = hashlib.md5(encode).hexdigest()
-
-    with open("account_credentials.txt", "w") as f:
-        f.write(username + "/n")
-        f.write(hash_pass)
-    f.close()
-    print("Registered Successfully")
-
-
-def login():
-    while True:
-        username = input("Enter your username: ")
-        password = input("Enter you password: ")
-
-        auth_pass = password.encode()
-        hash_pass = hashlib.md5(auth_pass).hexdigest()
-        with open("account_credentials.txt", "r") as f:
-            stored_user, stored_pass = f.read().split("/n")
-        f.close()
-
-        if username == stored_user and hash_pass == stored_pass:
-            print("Logged In")
-            break
-        else:
-            print("Login Failed")
-
-
 def main():
     print("Welcome to MusicTinker's Song Recommender")
     print("1) Signup")
@@ -152,10 +167,10 @@ def main():
         try:
             select = int(input("Enter selection: "))
             if select == 1:
-                signup()
+                # signup()
                 break
             elif select == 2:
-                login()
+                # login()
                 break
             elif select == 3:
                 exit()
@@ -169,7 +184,8 @@ def main():
         print("Spotify credentials not found. Please input credentials.")
         credentials = get_spotify_keys()
 
-    auth_manager = SpotifyClientCredentials(client_id=credentials["client_id"], client_secret=credentials["client_secret"])
+    auth_manager = SpotifyClientCredentials(client_id=credentials["client_id"],
+                                            client_secret=credentials["client_secret"])
     sp = spotipy.Spotify(auth_manager=auth_manager)
 
     spotusername = input("Please enter your Spotify username: ")
@@ -202,4 +218,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    r = Root()
