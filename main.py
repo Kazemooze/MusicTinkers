@@ -8,19 +8,6 @@ from tkinter import *
 from PIL import ImageTk, Image
 
 
-def get_spotify_keys():
-    client_id = input("Enter Spotify client ID: ")
-    client_secret = input("Enter Spotify client secret: ")
-
-    credentials = {
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-    with open("spotify_credentials.json", "w") as json_file:
-        json.dump(credentials, json_file)
-    return credentials
-
-
 class BaseScreen(tk.Frame):
     def __init__(self, master, entry_widgets):
         super().__init__(master)
@@ -30,18 +17,6 @@ class BaseScreen(tk.Frame):
                              font=('Microsoft YaHei UI Light', 30, 'bold'))
         program_name.place(x=0, y=0)
         self.entry_widgets = entry_widgets
-
-    def on_enter(self, event, entry_widget):
-        entry_widget.delete(0, 'end')
-
-    def on_leave(self, event, entry_widget):
-        text = entry_widget.get()
-        if text == '':
-            placeholder = next(
-                (item.get("placeholder", "") for item in self.entry_widgets if item.get("widget") == entry_widget), "")
-            entry_widget.delete(0, 'end')
-            # Use `after` to insert the placeholder after a short delay
-            self.after(10, entry_widget.insert, 'end', placeholder)
 
 
 class PlaceholderEntry(tk.Entry):
@@ -299,7 +274,7 @@ def main():
             credentials = json.load(json_file)
     except FileNotFoundError:
         print("Spotify credentials not found. Please input credentials.")
-        credentials = get_spotify_keys()
+        # credentials = get_spotify_keys()
 
     auth_manager = SpotifyClientCredentials(client_id=credentials["client_id"],
                                             client_secret=credentials["client_secret"])
