@@ -21,23 +21,61 @@ def get_spotify_keys():
     return credentials
 
 
-class Root:
-    def __init__(self):
-        root = tk.Tk()
-        root.title('MusicTinkers')
-        root.geometry('925x500+300+200')
-        root.configure(bg='white')
-        MainScreen(root)
-        root.mainloop()
-
-
-class MainScreen(tk.Frame):
-    def __init__(self, master):
+class BaseScreen(tk.Frame):
+    def __init__(self, master, entry_widgets):
         super().__init__(master)
         self.pack(fill=tk.BOTH, expand=True)
         self.configure(bg='#fff')
+        program_name = Label(text="MusicTinkers", fg='#57a1f8', bg='white',
+                             font=('Microsoft YaHei UI Light', 30, 'bold'))
+        program_name.place(x=0, y=0)
+        self.entry_widgets = entry_widgets
+
+    def on_enter(self, event, entry_widget):
+        entry_widget.delete(0, 'end')
+
+    def on_leave(self, event, entry_widget):
+        text = entry_widget.get()
+        if text == '':
+            placeholder = next(
+                (item.get("placeholder", "") for item in self.entry_widgets if item.get("widget") == entry_widget), "")
+            entry_widget.delete(0, 'end')
+            # Use `after` to insert the placeholder after a short delay
+            self.after(10, entry_widget.insert, 'end', placeholder)
+
+
+class PlaceholderEntry(tk.Entry):
+    def __init__(self, master=None, placeholder="", *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.placeholder = placeholder
+        self.insert("0", self.placeholder)
+        self.config(fg='grey')
+
+        self.bind("<FocusIn>", self.on_enter)
+        self.bind("<FocusOut>", self.on_leave)
+
+    def on_enter(self, event):
+        if self.get() == self.placeholder:
+            self.delete("0", "end")
+            self.config(fg='black')  # Change text color when user starts typing
+
+    def on_leave(self, event):
+        if not self.get():
+            self.insert("0", self.placeholder)
+            self.config(fg='grey')  # Change text color back to placeholder color
+
+
+class LoginScreen(BaseScreen):
+    def __init__(self, master):
         self.username_entry = None
         self.password_entry = None
+        entry_widgets = [
+            {"widget": self.username_entry, "placeholder": "Username"},
+            {"widget": self.password_entry, "placeholder": "Password"},
+        ]
+        super().__init__(master, entry_widgets)
+        self.pack(fill=tk.BOTH, expand=True)
+        self.configure(bg='#fff')
         self.create_widgets()
 
     def signup(self):
@@ -70,6 +108,7 @@ class MainScreen(tk.Frame):
 
                 if username == stored_user and auth_pass == stored_pass:
                     print("Logged In")
+                    self.show_spotifykeys_screen()
                     return
                 else:
                     print("Login Failed")
@@ -90,16 +129,16 @@ class MainScreen(tk.Frame):
         heading = Label(frame, text="Sign in", fg='#57a1f8', bg='white', font=('Microsoft YaHei UI Light', 23, 'bold'))
         heading.place(x=100, y=5)
 
-        self.username_entry = tk.Entry(frame, width=25, fg='black', bg="white", border=0,
-                                       font=('Microsoft YaHei UI Light', 11, 'bold'))
-        self.username_entry.insert(0, 'Username')
+        self.username_entry = PlaceholderEntry(frame, placeholder="Username", width=25, fg='black', bg="white",
+                                               border=0,
+                                               font=('Microsoft YaHei UI Light', 11, 'bold'))
         self.username_entry.place(x=30, y=80)
 
         Frame(frame, width=295, height=2, bg='black').place(x=25, y=107)
 
-        self.password_entry = tk.Entry(frame, show='*', width=25, fg='black', bg="white", border=0,
-                                       font=('Microsoft YaHei UI Light', 11, 'bold'))
-        self.password_entry.insert(0, 'Password')
+        self.password_entry = PlaceholderEntry(frame, placeholder="Password", width=25, show='*', fg='black',
+                                               bg="white", border=0,
+                                               font=('Microsoft YaHei UI Light', 11, 'bold'))
         self.password_entry.place(x=30, y=150)
 
         Frame(frame, width=295, height=2, bg='black').place(x=25, y=177)
@@ -108,9 +147,87 @@ class MainScreen(tk.Frame):
                                  border=0)
         login_button.place(x=35, y=204)
 
-        signup_button = tk.Button(frame, text="Signup", command=self.signup, bg='#57a1f8', fg='white', width='39',
+        signup_button = tk.Button(frame, text="Sign up", command=self.signup, bg='#57a1f8', fg='white', width='39',
                                   border=0)
         signup_button.place(x=35, y=240)
+
+    def show_spotifykeys_screen(self):
+        # Hide the current frame
+        self.pack_forget()
+        # Create a new frame for recommendations
+        SpotifyKeysScreen(self.master)
+
+    # def show_recommendations_screen(self):
+    #         self.pack_forget()
+    #         RecommendationsScreen(self.master)
+
+
+class SpotifyKeysScreen(BaseScreen):
+    def __init__(self, master):
+        self.clientid_entry = None
+        self.clientsecret_entry = None
+        entry_widgets = [
+            {"widget": self.clientid_entry, "placeholder": "Spotify Client ID"},
+            {"widget": self.clientsecret_entry, "placeholder": "Spotify Client Secret"},
+        ]
+        super().__init__(master, entry_widgets)
+        self.pack(fill=tk.BOTH, expand=True)
+        self.configure(bg='#fff')
+        self.create_widgets()
+
+    def get_spotify_keys(self):
+        client_id = self.clientid_entry.get()
+        client_secret = self.clientsecret_entry.get()
+
+        # Check if both client ID and client secret are provided
+        if client_id and client_secret:
+            credentials = {
+                "client_id": client_id,
+                "client_secret": client_secret
+            }
+            with open("spotify_credentials.json", "w") as json_file:
+                json.dump(credentials, json_file)
+            print("Spotify keys saved successfully.")
+        else:
+            print("Please enter both Spotify Client ID and Spotify Client Secret.")
+
+    def create_widgets(self):
+        frame = Frame(width=350, height=350, bg="white")
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        heading = Label(frame, text="Enter Spotify Keys", fg='#57a1f8', bg='white',
+                        font=('Microsoft YaHei UI Light', 23, 'bold'))
+        heading.place(x=325, y=5)
+
+        self.clientid_entry = PlaceholderEntry(frame, placeholder="Spotify Client ID", width=25, fg='black', bg="white",
+                                               border=0,
+                                               font=('Microsoft YaHei UI Light', 11, 'bold'))
+        self.clientid_entry.place(x=325, y=110)
+
+        Frame(frame, width=295, height=2, bg='black').place(x=325, y=137)
+
+        self.clientsecret_entry = PlaceholderEntry(frame, placeholder="Spotify Client Secret", width=25, fg='black',
+                                                   bg="white", border=0,
+                                                   font=('Microsoft YaHei UI Light', 11, 'bold'))
+        self.clientsecret_entry.place(x=325, y=180)
+
+        Frame(frame, width=295, height=2, bg='black').place(x=325, y=207)
+
+        save_button = tk.Button(frame, text="Save Keys", command=self.get_spotify_keys, bg='#57a1f8', fg='white',
+                                width='39', border=0)
+        save_button.place(x=325, y=240)
+
+
+class RecommendationsScreen(BaseScreen):
+    def __init__(self, master):
+        super().__init__(master)
+        self.pack(fill=tk.BOTH, expand=True)
+        self.configure(bg='#fff')
+        # You can add widgets specific to the recommendations screen here
+        self.create_widgets()
+
+    def create_widgets(self):
+        return
 
 
 # create another frame after login
@@ -218,4 +335,12 @@ def main():
 
 
 if __name__ == '__main__':
-    r = Root()
+    if __name__ == '__main__':
+        root = tk.Tk()
+        root.title('MusicTinkers')
+        root.geometry('925x500+300+200')
+        root.configure(bg='white')
+        root.iconbitmap("collection.ico")
+
+        main_screen = LoginScreen(root)
+        root.mainloop()
