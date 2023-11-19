@@ -18,6 +18,23 @@ class BaseScreen(tk.Frame):
         program_name.place(x=0, y=0)
         self.entry_widgets = entry_widgets
 
+    def show_spotifykeys_screen(self):
+        self.pack_forget()
+        self.clear_canvas()
+        # Create a new frame for recommendations
+        SpotifyKeysScreen(self.master)
+
+    def show_recommendations_screen(self):
+        self.pack_forget()
+        # Clear the canvas
+        self.clear_canvas()
+        # Create a new frame for recommendations
+        RecommendationsScreen(self.master)
+
+    def clear_canvas(self):
+        # Placeholder for canvas clearing
+        pass
+
 
 class PlaceholderEntry(tk.Entry):
     def __init__(self, master=None, placeholder="", *args, **kwargs):
@@ -83,7 +100,13 @@ class LoginScreen(BaseScreen):
 
                 if username == stored_user and auth_pass == stored_pass:
                     print("Logged In")
-                    self.show_spotifykeys_screen()
+                    try:
+                        with open("spotify_credentials.json", 'r') as json_file:
+                            json.load(json_file)
+                            self.show_recommendations_screen()
+                    except FileNotFoundError:
+                        print("Spotify credentials not found. Please input credentials.")
+                        self.show_spotifykeys_screen()
                     return
                 else:
                     print("Login Failed")
@@ -126,16 +149,6 @@ class LoginScreen(BaseScreen):
                                   border=0)
         signup_button.place(x=35, y=240)
 
-    def show_spotifykeys_screen(self):
-        # Hide the current frame
-        self.pack_forget()
-        # Create a new frame for recommendations
-        SpotifyKeysScreen(self.master)
-
-    # def show_recommendations_screen(self):
-    #         self.pack_forget()
-    #         RecommendationsScreen(self.master)
-
 
 class SpotifyKeysScreen(BaseScreen):
     def __init__(self, master):
@@ -163,12 +176,13 @@ class SpotifyKeysScreen(BaseScreen):
             with open("spotify_credentials.json", "w") as json_file:
                 json.dump(credentials, json_file)
             print("Spotify keys saved successfully.")
+            self.show_recommendations_screen()
         else:
             print("Please enter both Spotify Client ID and Spotify Client Secret.")
 
     def create_widgets(self):
         frame = Frame(width=350, height=350, bg="white")
-        frame.pack(fill="both", expand=True, padx=20, pady=20)
+        frame.place(relwidth=1, relheight=1, relx=0, rely=0, anchor='nw')
 
         heading = Label(frame, text="Enter Spotify Keys", fg='#57a1f8', bg='white',
                         font=('Microsoft YaHei UI Light', 23, 'bold'))
@@ -195,15 +209,22 @@ class SpotifyKeysScreen(BaseScreen):
 
 class RecommendationsScreen(BaseScreen):
     def __init__(self, master):
-        super().__init__(master)
+        self.spot_user = None
+        entry_widgets = [
+            {"widget": self.spot_user, "placeholder": "Username"},
+        ]
+        super().__init__(master, entry_widgets)
         self.pack(fill=tk.BOTH, expand=True)
         self.configure(bg='#fff')
-        # You can add widgets specific to the recommendations screen here
         self.create_widgets()
 
     def create_widgets(self):
-        return
+        frame = Frame(width=350, height=350, bg="white")
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
 
+        heading = Label(frame, text="Recommendations", fg='#57a1f8', bg='white',
+                        font=('Microsoft YaHei UI Light', 23, 'bold'))
+        heading.place(x=325, y=5)
 
 # create another frame after login
 # implement spotify stuff here, lookup, selection,recommendation
