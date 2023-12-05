@@ -76,6 +76,8 @@ class PlaceholderEntry(tk.Entry):
 class LoginScreen(BaseScreen):
     def __init__(self, master, current_user=None):
         # Initialize entry widgets
+        self.image_label = None
+        self.frame = None
         self.username_entry = None
         self.password_entry = None
         entry_widgets = [
@@ -111,10 +113,10 @@ class LoginScreen(BaseScreen):
                     try:
                         with open("spotify_credentials.json", 'r') as json_file:
                             json.load(json_file)
+                            self.show_recommendations_screen(current_user=self.current_user)
                             self.image_label.destroy()
                             self.username_entry.destroy()
                             self.frame.destroy()
-                            self.show_recommendations_screen(current_user=self.current_user)
                     except FileNotFoundError:
                         print("Spotify credentials not found. Please input credentials.")
                         self.image_label.destroy()
@@ -175,6 +177,9 @@ class LoginScreen(BaseScreen):
 class RegistrationScreen(BaseScreen):
     def __init__(self, master, current_user=None):
         # Initialize entry widgets
+        self.spotusername_entry = None
+        self.image_label = None
+        self.frame = None
         self.username_entry = None
         self.password_entry = None
         entry_widgets = [
@@ -260,6 +265,7 @@ class RegistrationScreen(BaseScreen):
 class SpotifyKeysScreen(BaseScreen):
     def __init__(self, master, current_user=None):
         # Initialize entry widgets
+        self.frame = None
         self.clientid_entry = None
         self.clientsecret_entry = None
         entry_widgets = [
@@ -394,21 +400,24 @@ class RecommendationsScreen(BaseScreen):
         for num in cluster_numbers:
             clusters[num] = cluster_numbers.count(num)
 
-        # select the user favorite cluster by sorting
-        user_favorite_cluster = [(k, v) for k, v in sorted(clusters.items(), key=lambda z: z[1])][0][0]
+        if not clusters:
+            print('Not a Valid Playlist')
+        else:
+            # select the user favorite cluster by sorting
+            user_favorite_cluster = [(k, v) for k, v in sorted(clusters.items(), key=lambda z: z[1])][0][0]
 
-        tracks = tracks[tracks.popularity > 70]
+            tracks = tracks[tracks.popularity > 70]
 
-        # get suggestion songs from that cluster
-        suggestions = tracks[tracks['type'] == user_favorite_cluster].head(8)
-        # Retrieve detailed information for each track using Spotify API in a separate thread
-        thread = threading.Thread(target=self.fetch_detailed_info, args=(suggestions,))
-        thread.start()
+            # get suggestion songs from that cluster
+            suggestions = tracks[tracks['type'] == user_favorite_cluster].head(35).tail(8)
+            # Retrieve detailed information for each track using Spotify API in a separate thread
+            thread = threading.Thread(target=self.fetch_detailed_info, args=(suggestions,))
+            thread.start()
 
     def fetch_detailed_info(self, suggestions):
         # Retrieve detailed information for each track using Spotify API
         detailed_track_info = []
-        for track_id in suggestions['track_id']:
+        for track_id in suggestions['id']:
             track_info = self.sp.track(track_id)
             detailed_track_info.append({
                 'name': track_info['name'],
