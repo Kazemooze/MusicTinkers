@@ -31,23 +31,16 @@ class BaseScreen(tk.Frame):
         self.current_user = spotusername
 
     def show_signup_screen(self):
-        self.destroy_screen()
         RegistrationScreen(self.master)
 
     def show_login_screen(self):
-        self.destroy_screen()
         LoginScreen(self.master)
 
     def show_spotifykeys_screen(self):
-        self.destroy_screen()
         SpotifyKeysScreen(self.master)
 
     def show_recommendations_screen(self, current_user=None):
-        self.destroy_screen()
         RecommendationsScreen(self.master, current_user=self.current_user)
-
-    def destroy_screen(self):
-        self.destroy()
 
 
 # Custom Entry widget with placeholder text
@@ -113,19 +106,22 @@ class LoginScreen(BaseScreen):
                     try:
                         with open("spotify_credentials.json", 'r') as json_file:
                             json.load(json_file)
-                            self.show_recommendations_screen(current_user=self.current_user)
                             self.image_label.destroy()
-                            self.username_entry.destroy()
                             self.frame.destroy()
+                            self.show_recommendations_screen(current_user=self.current_user)
                     except FileNotFoundError:
                         print("Spotify credentials not found. Please input credentials.")
-                        self.image_label.destroy()
-                        self.username_entry.destroy()
-                        self.frame.destroy()
                         self.show_spotifykeys_screen()
+                        self.image_label.destroy()
+                        self.frame.destroy()
                     return
                 else:
                     print("Login Failed")
+
+    def signup_transition(self):
+        self.image_label.destroy()
+        self.frame.destroy()
+        self.show_signup_screen()
 
     def create_widgets(self):
         # Create GUI components for login screen
@@ -167,7 +163,7 @@ class LoginScreen(BaseScreen):
                       font=('Microsoft YaHei UI Light', 9))
         label.place(x=75, y=270)
 
-        signup_button = tk.Button(self.frame, text="Sign up", command=self.show_signup_screen, fg='#57a1f8', bg='white',
+        signup_button = tk.Button(self.frame, text="Sign up", command=self.signup_transition, fg='#57a1f8', bg='white',
                                   width='6', cursor='hand2',
                                   border=0)
         signup_button.place(x=180, y=270)
@@ -206,7 +202,11 @@ class RegistrationScreen(BaseScreen):
         f.close()
         print("Registered Successfully")
         self.image_label.destroy()
-        self.username_entry.destroy()
+        self.frame.destroy()
+        self.show_login_screen()
+
+    def login_transition(self):
+        self.image_label.destroy()
         self.frame.destroy()
         self.show_login_screen()
 
@@ -255,9 +255,10 @@ class RegistrationScreen(BaseScreen):
         label = Label(self.frame, text="Back to", fg='black', bg='white', font=('Microsoft YaHei UI Light', 9))
         label.place(x=120, y=320)
 
-        login_button = tk.Button(self.frame, text="Login", command=self.show_login_screen, fg='#57a1f8', bg='white',
+        login_button = tk.Button(self.frame, text="Login", command=self.login_transition, fg='#57a1f8', bg='white',
                                  width='6', cursor='hand2',
                                  border=0)
+
         login_button.place(x=180, y=320)
 
 
@@ -492,8 +493,8 @@ class RecommendationsScreen(BaseScreen):
 
     def create_widgets(self):
         # create the screen widgets
-        frame = Frame(width=350, height=350, bg="white")
-        frame.pack(fill="both", expand=True, padx=20, pady=20)
+        frame = Frame(width=350, height=450, bg="white")
+        frame.pack(fill="both", expand=True, padx=20, pady=50)
 
         caret_img = Image.open("caret_down.png")
         caret_img = caret_img.resize((15, 15))
@@ -502,7 +503,7 @@ class RecommendationsScreen(BaseScreen):
 
         heading = Label(frame, text="Recommendations", fg='#57a1f8', bg='white',
                         font=('Microsoft YaHei UI Light', 23, 'bold'))
-        heading.place(x=300, y=5)
+        heading.place(x=300, y=0)
         # retieve playslist name from dict
         playlist_data = self.get_playlist_data(self.sp)
         playlist_names = [playlist['name'] for playlist in playlist_data]
@@ -545,12 +546,13 @@ class RecommendationsScreen(BaseScreen):
 
 
 if __name__ == '__main__':
-    if __name__ == '__main__':
-        root = tk.Tk()
-        root.title('MusicTinkers')
-        root.geometry('925x500+300+200')
-        root.configure(bg='white')
-        root.iconbitmap("collection.ico")
+    root = tk.Tk()
+    root.title('MusicTinkers')
+    root.geometry('925x500+300+200')
+    root.configure(bg='white')
+    root.iconbitmap("collection.ico")
 
-        main_screen = LoginScreen(root)
-        root.mainloop()
+    main_screen = BaseScreen(root, entry_widgets=[])
+    main_screen.show_login_screen()
+
+    root.mainloop()
