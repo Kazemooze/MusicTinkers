@@ -320,7 +320,7 @@ class SpotifyKeysScreen(BaseScreen):
 
         self.clientsecret_entry = PlaceholderEntry(self.frame, placeholder="Spotify Client Secret", width=25,
                                                    fg='black',
-                                                   bg="white", border=0,
+                                                   bg="white", border=0, show='*',
                                                    font=('Microsoft YaHei UI Light', 11, 'bold'))
         self.clientsecret_entry.place(x=325, y=180)
 
@@ -402,7 +402,11 @@ class RecommendationsScreen(BaseScreen):
             clusters[num] = cluster_numbers.count(num)
 
         if not clusters:
-            print('Not a Valid Playlist')
+            warning = Toplevel()
+            warning.geometry('200x100')
+            label = Label(warning, text='Not a Valid Playlist')
+            label.pack()
+
         else:
             # select the user favorite cluster by sorting
             user_favorite_cluster = [(k, v) for k, v in sorted(clusters.items(), key=lambda z: z[1])][0][0]
@@ -454,6 +458,9 @@ class RecommendationsScreen(BaseScreen):
         except Exception as e:
             print(f"Error playing preview: {e}")
 
+    def stop_preview(self):
+        pygame.mixer.music.stop()
+
     def display_recommendations(self, detailed_track_info):
         # Clear previous recommendations
         if self.recommendations_frame:
@@ -488,8 +495,14 @@ class RecommendationsScreen(BaseScreen):
 
             if preview_url:
                 play_button = tk.Button(self.recommendations_frame, text="Play Preview",
-                                        command=lambda url=preview_url: self.play_preview(url))
+                                        command=lambda url=preview_url: self.play_preview(url), bg='#57a1f8',
+                                        fg='white',
+                                        width='15', border=0)
                 play_button.grid(row=index, column=2, sticky=tk.W, padx=10)
+
+                stop_button = tk.Button(self.recommendations_frame, text="Stop Preview",
+                                        command=self.stop_preview, bg='#ff5733', fg='white', width='15', border=0)
+                stop_button.grid(row=index, column=3, sticky=tk.W, padx=10)
 
     def create_widgets(self):
         # create the screen widgets
@@ -551,6 +564,7 @@ if __name__ == '__main__':
     root.geometry('925x500+300+200')
     root.configure(bg='white')
     root.iconbitmap("collection.ico")
+    pygame.init()
 
     main_screen = BaseScreen(root, entry_widgets=[])
     main_screen.show_login_screen()
