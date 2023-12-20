@@ -13,6 +13,8 @@ import os
 import tempfile
 import pygame
 import threading
+import csv
+from sklearn.cluster import KMeans
 
 
 # Base class for screens
@@ -43,7 +45,7 @@ class BaseScreen(tk.Frame):
         RecommendationsScreen(self.master, current_user=self.current_user)
 
 
-# Custom Entry widget with placeholder text
+# Entry widget for placeholder text
 class PlaceholderEntry(tk.Entry):
     def __init__(self, master=None, placeholder="", *args, **kwargs):
         super().__init__(master, *args, **kwargs)
@@ -83,15 +85,18 @@ class LoginScreen(BaseScreen):
         self.create_widgets()
 
     def login(self):
-        # Validate username and password
+        # Get username and password from entry widgets
         username = self.username_entry.get()
         password = self.password_entry.get()
-        auth_pass = hashlib.md5(password.encode()).hexdigest()
 
-        # Check user credentials
+        # Hash the entered password using sha224
+        auth_pass = hashlib.sha224(password.encode()).hexdigest()
+
+        # Check user credentials from the stored account credentials file
         with open("account_credentials.txt", "r") as f:
             for line in f:
                 try:
+                    # Load account data from JSON
                     account_data = json.loads(line)
                     stored_user = account_data.get("username", "")
                     stored_pass = account_data.get("password", "")
@@ -102,6 +107,7 @@ class LoginScreen(BaseScreen):
                 # Authenticate user
                 if username == stored_user and auth_pass == stored_pass:
                     print("Logged In")
+                    # Set the current user and handle Spotify credentials
                     self.set_current_user(account_data.get("spotusername", ""))
                     try:
                         with open("spotify_credentials.json", 'r') as json_file:
@@ -188,19 +194,25 @@ class RegistrationScreen(BaseScreen):
         self.create_widgets()
 
     def signup(self):
-        # Get user registration details and save to file
+        # Get user registration details from entry widgets
         username = self.username_entry.get()
         password = self.password_entry.get()
         spotusername = self.spotusername_entry.get()
-        encode = password.encode()
-        hash_pass = hashlib.md5(encode).hexdigest()
 
+        # Encode and hash the password using sha224
+        encode = password.encode()
+        hash_pass = hashlib.sha224(encode).hexdigest()
+
+        # Create a dictionary with user account data
         account_data = {"username": username, "password": hash_pass, "spotusername": spotusername}
 
+        # Write the account data to the account credentials file
         with open("account_credentials.txt", "a") as f:
             f.write(json.dumps(account_data) + "\n")
         f.close()
         print("Registered Successfully")
+
+        # Destroy the signup screen components and show the login screen
         self.image_label.destroy()
         self.frame.destroy()
         self.show_login_screen()
@@ -289,9 +301,11 @@ class SpotifyKeysScreen(BaseScreen):
                 "client_id": client_id,
                 "client_secret": client_secret
             }
+
             with open("spotify_credentials.json", "w") as json_file:
                 json.dump(credentials, json_file)
             print("Spotify keys saved successfully.")
+
             with open("account_credentials.txt", "r") as f:
                 for line in f:
                     account_data = json.loads(line)
@@ -339,11 +353,13 @@ class RecommendationsScreen(BaseScreen):
         self.str_out = None
         self.playlist_value = None
         self.recommendations_frame = None  # Frame to display recommendations
+
         with open("spotify_credentials.json", 'r') as json_file:
             credentials = json.load(json_file)
         auth_manager = SpotifyClientCredentials(client_id=credentials["client_id"],
                                                 client_secret=credentials["client_secret"])
         self.sp = spotipy.Spotify(auth_manager=auth_manager)
+
         pygame.mixer.init()
         entry_widgets = [
             {"widget": self.spotusername, "placeholder": "Username"},
@@ -351,7 +367,7 @@ class RecommendationsScreen(BaseScreen):
 
         super().__init__(master, entry_widgets, current_user=current_user)
         self.master.geometry("1440x720+150+100")
-        self.playlist_value = tk.StringVar(self)  # Create StringVar for each
+        self.playlist_value = tk.StringVar(self)  # Create StringVar for each playlist
 
         self.pack(fill=tk.BOTH, expand=True)
         self.current_user = current_user
@@ -359,37 +375,96 @@ class RecommendationsScreen(BaseScreen):
         self.create_widgets()
 
     def get_playlist_data(self, sp):
-        # Get a user's playlists
+        # get the current user spotify name
         username = self.current_user
+        # use spotify API to get users playlits
         playlists = sp.user_playlists(username)
+        # get the name and uri of the playlist
         playlist_data = [{'name': playlist['name'], 'uri': playlist['uri']} for playlist in playlists['items']]
         return playlist_data
 
+    def perform_kmeans(self):
+        # read the data into tracks data frame
+        tracks_df = pd.read_csv("result.csv")
+
+        # creates the clustering model
+        model = KMeans(n_clusters=15)
+
+        # divide the data into 5 clusters
+        model.fit(tracks_df[['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
+                             'speechiness', 'tempo', 'valence']])
+        tracks_df['type'] = model.labels_
+
+        tracks_df.to_csv("result.csv", index=False)
+
+        return tracks_df
+
+    def get_song_features(self, track_id):
+        try:
+            track_features = self.sp.audio_features(track_id)[0]
+            features_list = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
+                             'speechiness', 'tempo', 'valence']
+            # filter out only the needed data
+            features = {feature: track_features[feature] for feature in features_list}
+
+            # Specify the order of columns in the CSV file
+            columns = ["Unnamed: 0", "acousticness", "danceability", "energy", "id", "instrumentalness", "liveness",
+                       "loudness",
+                       "name", "popularity", "preview_url", "speechiness", "tempo", "valence", "type"]
+
+            # write the new data in the correct order with the dict
+            with open("result.csv", 'a', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=columns)
+                writer.writerow({"id": track_id, **features})
+
+        except Exception as e:
+            print(f"Error fetching features for track {track_id}: {e}")
+
     def get_recommendations(self):
+        # Get the selected playlist name from the dropdown menu
         selected_playlist = self.playlist_value.get()
 
-        # Find the corresponding dictionary for the selected playlist
+        # Retrieve all playlist data
         playlist_data = self.get_playlist_data(self.sp)
+
+        # Find the data for the selected playlist of selected playlist
         selected_playlist_data = next((playlist for playlist in playlist_data if playlist['name'] == selected_playlist),
                                       None)
 
-        selected_playlist_uri = None  # Initialize to None
+        selected_playlist_uri = None
 
+        # Check if the selected playlist data exists
         if selected_playlist_data:
+            # Retrieve the URI of the selected playlist
             selected_playlist_uri = selected_playlist_data['uri']
         else:
             print(f"Playlist '{selected_playlist}' not found in the data.")
 
         track_ids = []
+        tracks = pd.read_csv('result.csv')
 
+        # Check if a valid playlist URI exists
         if selected_playlist_uri is not None:
+            # Use Spotify API to get the items (tracks) in the selected playlist
             sp_res = self.sp.playlist_items(selected_playlist_uri)
 
-            # Iterate through the items in the response and collect track IDs
+            # Extract track IDs from the items in the playlist
             for item in sp_res['items']:
                 track_id = item['track']['id']
+
+                if track_id not in tracks['id'].values:
+                    self.get_song_features(track_id)
+
                 track_ids.append(track_id)
 
+        # update csv dataframe for new potential songs
+        tracks = pd.read_csv('result.csv')
+
+        # perform kmeans calculations on the new songs
+        thread = threading.Thread(target=self.perform_kmeans)
+        thread.start()
+        thread.join()
+        # update dataframe with the new kmeans numbers
         tracks = pd.read_csv('result.csv')
 
         # code from Kuvam Bhardwaj on dev.to
@@ -401,25 +476,19 @@ class RecommendationsScreen(BaseScreen):
         for num in cluster_numbers:
             clusters[num] = cluster_numbers.count(num)
 
-        if not clusters:
-            warning = Toplevel()
-            warning.geometry('200x100')
-            label = Label(warning, text='Not a Valid Playlist')
-            label.pack()
+        user_favorite_cluster = [(k, v) for k, v in sorted(clusters.items(), key=lambda z: z[1])][0][0]
 
-        else:
-            # select the user favorite cluster by sorting
-            user_favorite_cluster = [(k, v) for k, v in sorted(clusters.items(), key=lambda z: z[1])][0][0]
+        tracks = tracks[tracks.popularity > 70]
 
-            tracks = tracks[tracks.popularity > 70]
+        # get suggestion songs from that cluster
+        suggestions = tracks[tracks['type'] == user_favorite_cluster].head(35).tail(8)
+        # Retrieve detailed information for each track using Spotify API in a separate thread
 
-            # get suggestion songs from that cluster
-            suggestions = tracks[tracks['type'] == user_favorite_cluster].head(35).tail(8)
-            # Retrieve detailed information for each track using Spotify API in a separate thread
-            thread = threading.Thread(target=self.fetch_detailed_info, args=(suggestions,))
-            thread.start()
+        thread = threading.Thread(target=self.fetch_detailed_info, args=(suggestions,))
+        thread.start()
 
     def fetch_detailed_info(self, suggestions):
+
         # Retrieve detailed information for each track using Spotify API
         detailed_track_info = []
         for track_id in suggestions['id']:
@@ -462,6 +531,7 @@ class RecommendationsScreen(BaseScreen):
         pygame.mixer.music.stop()
 
     def display_recommendations(self, detailed_track_info):
+
         # Clear previous recommendations
         if self.recommendations_frame:
             self.recommendations_frame.destroy()
@@ -473,7 +543,7 @@ class RecommendationsScreen(BaseScreen):
         # Display detailed information about each track
         for index, track_info in enumerate(detailed_track_info, start=1):
             song_name = track_info['name']
-            artists = ', '.join(track_info['artists'])
+            artists = (track_info['artists'][0])
             preview_url = track_info['preview_url']
             image_url = track_info['image_url']
 
@@ -517,16 +587,18 @@ class RecommendationsScreen(BaseScreen):
         heading = Label(frame, text="Recommendations", fg='#57a1f8', bg='white',
                         font=('Microsoft YaHei UI Light', 23, 'bold'))
         heading.place(x=300, y=0)
-        # retieve playslist name from dict
+
+        # retieve playlist name from method and get playlist names from data
         playlist_data = self.get_playlist_data(self.sp)
         playlist_names = [playlist['name'] for playlist in playlist_data]
 
+        # create Tk stringvar to hold playlist names
         self.playlist_value = tk.StringVar(root)
         self.playlist_value.set("Select a Playlist")
         # option menu with the playlist names
-        select_menu = tk.OptionMenu(frame, self.playlist_value, *playlist_names)
+        self.select_menu = tk.OptionMenu(frame, self.playlist_value, *playlist_names)
 
-        select_menu.config(
+        self.select_menu.config(
             bg="#57a1f8",
             fg="White",
             activebackground="#bcd7f7",
@@ -542,7 +614,7 @@ class RecommendationsScreen(BaseScreen):
             width=180
         )
 
-        select_menu['menu'].config(
+        self.select_menu['menu'].config(
             bg='#57a1f8',
             fg="White",
             activebackground="#bcd7f7",
@@ -551,7 +623,7 @@ class RecommendationsScreen(BaseScreen):
             border=0,
         )
 
-        select_menu.place(x=50, y=50)
+        self.select_menu.place(x=50, y=50)
 
         submit_button = tk.Button(frame, text="Get Recommendations", command=lambda: self.get_recommendations(),
                                   bg='#57a1f8', fg='white', width='20', border=0, pady=10, font=('Arial', 10))
